@@ -5,7 +5,7 @@ import os
 import numpy as np
 from sentence_transformers import SentenceTransformer
 import google.generativeai as genai
-import streamlit_authenticator as stauth 
+import bcrypt # bcryptはパスワードのハッシュ化・検証に必要なので残します
 
 # --- 1. Google Gemini API キーの設定 ---
 API_KEY = os.getenv("GOOGLE_API_KEY") 
@@ -121,6 +121,9 @@ class RAGChatbot:
         self.query_embedding_model = query_embedding_model 
 
     def find_relevant_articles(self, query, top_k=3):
+        """
+        質問の埋め込みベクトルを生成し、最も類似度の高い記事を検索します。
+        """
         query_embedding = self.query_embedding_model.encode([query])[0]
         
         norms_embeddings = np.linalg.norm(self.embeddings, axis=1)
@@ -144,6 +147,9 @@ class RAGChatbot:
         return relevant_articles
 
     def generate_response(self, query, relevant_articles):
+        """
+        検索で得られた関連記事と質問をLLMに渡し、回答を生成させます。
+        """
         context = ""
         if relevant_articles:
             context += "以下のブログ記事の情報を参照して質問に答えてください。\n"
@@ -185,34 +191,46 @@ METADATA_FILE = "blog_metadata.json"
 
 st.set_page_config(page_title="愛ちゃんブログチャットボット", page_icon="🌸")
 
-# --- 認証情報の定義 ---
-credentials = {
-    "usernames": {}
-}
-for username in st.secrets.get("auth", {}).get("credentials", {}).get("usernames", {}):
-    user_info = st.secrets["auth"]["credentials"]["usernames"][username]
-    credentials["usernames"][username] = {
-        "email": user_info.get("email", ""),
-        "name": user_info.get("name", username),
-        "password": user_info["password"]
-    }
+# --- 手動認証情報の定義 ---
+# Streamlit Secretsから直接、ユーザー名とハッシュ化パスワードを読み込む
+VALID_USERNAME = "user" # secrets.tomlで設定したユーザー名と一致させる
+VALID_HASHED_PASSWORD = st.secrets.get("auth", {}).get("credentials", {}).get("usernames", {}).get(VALID_USERNAME, {}).get("password")
 
-# Streamlit Authenticatorの初期化
-authenticator = stauth.Authenticate(
-    credentials,
-    st.secrets.get("cookie", {}).get("name", "ai_chan_chatbot_cookie"), 
-    st.secrets.get("cookie", {}).get("key", "some_default_secret_key_for_cookie"), 
-    st.secrets.get("cookie", {}).get("expiry_days", 30),
-)
+# 認証されていない場合のデフォルト値
+if "logged_in" not in st.session_state:
+    st.session_state["logged_in"] = False
+if "username" not in st.session_state:
+    st.session_state["username"] = ""
 
 # --- 認証UIの表示 ---
-# 'Login' というフォーム名だけを引数として渡す
-name, authentication_status, username = authenticator.login("Login") # <-- ここを修正
+if not st.session_state["logged_in"]:
+    st.header("ログインしてください")
+    username_input = st.text_input("ユーザー名")
+    password_input = st.text_input("パスワード", type="password")
 
-# 認証成功の場合のみ、アプリの残りを表示
-if authentication_status: 
-    authenticator.logout('Logout', 'sidebar') 
-    st.sidebar.write(f"ようこそ、{name}さん！")
+    if st.button("ログイン"):
+        if VALID_HASHED_PASSWORD:
+            try:
+                # 入力されたパスワードをハッシュ化して比較
+                # bcrypt.checkpw はバイト文字列を比較するため、入力とハッシュ値をエンコード
+                if bcrypt.checkpw(password_input.encode('utf-8'), VALID_HASHED_PASSWORD.encode('utf-8')):
+                    st.session_state["logged_in"] = True
+                    st.session_state["username"] = username_input
+                    st.success(f"ようこそ、{username_input}さん！")
+                    st.experimental_rerun() # ログイン成功時にページを再描画してチャットボットを表示
+                else:
+                    st.error("ユーザー名またはパスワードが間違っています。")
+            except ValueError: # ハッシュ値の形式が不正な場合など
+                st.error("認証情報の設定に問題があります。管理者に連絡してください。")
+        else:
+            st.error("認証情報が正しく設定されていません。")
+else: # 認証済みの場合
+    st.sidebar.markdown("---")
+    st.sidebar.markdown(f"ようこそ、{st.session_state['username']}さん！")
+    if st.sidebar.button("ログアウト"):
+        st.session_state["logged_in"] = False
+        st.session_state["username"] = ""
+        st.experimental_rerun() # ログアウト時にページを再描画してログインフォームを表示
 
     st.title("🌸 愛ちゃんブログチャットボット")
     st.write("遠藤さくらさんのブログ記事から情報を取得して、質問に答えます。")
@@ -268,8 +286,3 @@ if authentication_status:
     st.sidebar.markdown("---")
     st.sidebar.markdown("開発者情報")
     st.sidebar.markdown("このチャットボットは、Python, Streamlit, Sentence-Transformers, Google Gemini API を使用して構築されています。")
-
-# 認証失敗または未認証の場合、アプリの実行をここで停止
-else: # authentication_status が False または None の場合
-    # authenticator.login() がメッセージを表示するので、ここでは何もしない
-    pass
