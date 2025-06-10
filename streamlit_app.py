@@ -203,21 +203,17 @@ authenticator = stauth.Authenticate(
     st.secrets.get("cookie", {}).get("name", "ai_chan_chatbot_cookie"), 
     st.secrets.get("cookie", {}).get("key", "some_default_secret_key_for_cookie"), 
     st.secrets.get("cookie", {}).get("expiry_days", 30),
-    # preauthorized引数は削除またはコメントアウト
 )
 
 # --- 認証UIの表示 ---
-name, authentication_status, username = authenticator.login('Login', 'main')
+# login() ではなく authenticate() を使用し、直接引数を渡す
+name, authentication_status, username = authenticator.authenticate(
+    "Login Form", # フォーム名
+    "main"        # 表示場所 ('main', 'sidebar', 'unrendered' のいずれか)
+)
 
-if authentication_status == False:
-    st.error('ユーザー名またはパスワードが間違っています')
-    st.stop() 
-elif authentication_status == None:
-    st.warning('ユーザー名とパスワードを入力してください')
-    st.stop() 
-
-# --- 認証成功後のアプリ本体 ---
-if authentication_status:
+# 認証成功の場合のみ、アプリの残りを表示
+if authentication_status: 
     authenticator.logout('Logout', 'sidebar') 
     st.sidebar.write(f"ようこそ、{name}さん！")
 
@@ -275,3 +271,13 @@ if authentication_status:
     st.sidebar.markdown("---")
     st.sidebar.markdown("開発者情報")
     st.sidebar.markdown("このチャットボットは、Python, Streamlit, Sentence-Transformers, Google Gemini API を使用して構築されています。")
+
+# 認証失敗または未認証の場合、アプリの実行をここで停止
+else: # authentication_status が False または None の場合
+    st.session_state["authentication_status"] = authentication_status # 状態をセッションに保存
+    st.session_state["name"] = name
+    st.session_state["username"] = username
+    
+    # ここでは、ログインフォームが表示されるので、特に何もしない。
+    # 認証失敗メッセージは authenticator.authenticate() の中で処理済み。
+    pass
