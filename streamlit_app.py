@@ -206,11 +206,8 @@ authenticator = stauth.Authenticate(
 )
 
 # --- 認証UIの表示 ---
-# login() ではなく authenticate() を使用し、直接引数を渡す
-name, authentication_status, username = authenticator.authenticate(
-    "Login Form", # フォーム名
-    "main"        # 表示場所 ('main', 'sidebar', 'unrendered' のいずれか)
-)
+# authenticate() ではなく login() メソッドに再度戻す
+name, authentication_status, username = authenticator.login("Login Form") # <-- ここを修正
 
 # 認証成功の場合のみ、アプリの残りを表示
 if authentication_status: 
@@ -274,10 +271,5 @@ if authentication_status:
 
 # 認証失敗または未認証の場合、アプリの実行をここで停止
 else: # authentication_status が False または None の場合
-    st.session_state["authentication_status"] = authentication_status # 状態をセッションに保存
-    st.session_state["name"] = name
-    st.session_state["username"] = username
-    
-    # ここでは、ログインフォームが表示されるので、特に何もしない。
-    # 認証失敗メッセージは authenticator.authenticate() の中で処理済み。
+    # ここに認証失敗メッセージは表示されないので、Authenticatorに任せる
     pass
