@@ -206,13 +206,8 @@ authenticator = stauth.Authenticate(
 )
 
 # --- 認証UIの表示 ---
-# authenticate() ではなく login() メソッドを使用
-# Location 引数を、Streamlit Authenticatorが確実に認識する形式で渡す
-# 'main' を引数として渡すのではなく、辞書形式で渡す
-name, authentication_status, username = authenticator.login(
-    fields={'Form name': "Login"}, # フォームの表示名
-    location='main' # エラーメッセージが示唆する場所。今回は明示的に文字列で渡す
-)
+# 'Login' というフォーム名だけを引数として渡す
+name, authentication_status, username = authenticator.login("Login") # <-- ここを修正
 
 # 認証成功の場合のみ、アプリの残りを表示
 if authentication_status: 
@@ -276,5 +271,5 @@ if authentication_status:
 
 # 認証失敗または未認証の場合、アプリの実行をここで停止
 else: # authentication_status が False または None の場合
-    # 認証失敗メッセージは authenticator.login() の中で処理済みなので、ここでは何もしない
+    # authenticator.login() がメッセージを表示するので、ここでは何もしない
     pass
