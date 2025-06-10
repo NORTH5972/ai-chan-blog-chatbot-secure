@@ -5,7 +5,7 @@ import os
 import numpy as np
 from sentence_transformers import SentenceTransformer
 import google.generativeai as genai
-import bcrypt # bcryptはパスワードのハッシュ化・検証に必要なので残します
+import bcrypt 
 
 # --- 1. Google Gemini API キーの設定 ---
 API_KEY = os.getenv("GOOGLE_API_KEY") 
@@ -217,7 +217,7 @@ if not st.session_state["logged_in"]:
                     st.session_state["logged_in"] = True
                     st.session_state["username"] = username_input
                     st.success(f"ようこそ、{username_input}さん！")
-                    st.experimental_rerun() # ログイン成功時にページを再描画してチャットボットを表示
+                    st.rerun() # ログイン成功時にページを再描画してチャットボットを表示 <-- ここを修正
                 else:
                     st.error("ユーザー名またはパスワードが間違っています。")
             except ValueError: # ハッシュ値の形式が不正な場合など
@@ -230,7 +230,7 @@ else: # 認証済みの場合
     if st.sidebar.button("ログアウト"):
         st.session_state["logged_in"] = False
         st.session_state["username"] = ""
-        st.experimental_rerun() # ログアウト時にページを再描画してログインフォームを表示
+        st.rerun() # ログアウト時にページを再描画してログインフォームを表示 <-- ここを修正
 
     st.title("🌸 愛ちゃんブログチャットボット")
     st.write("遠藤さくらさんのブログ記事から情報を取得して、質問に答えます。")
